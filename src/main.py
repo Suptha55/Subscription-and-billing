@@ -2,11 +2,14 @@ import logging
 import os
 from loader import load_subscriptions, load_usage
 from usage_aggregator import aggregate_usage
-from billing_engine import calculate_bill
+from billing_engine import calculate_bill, calculate_prorated_fee
 from status_engine import evaluate_status
 from reporter import generate_summary
 
 import pandas as pd
+
+# Ensure logs directory exists
+os.makedirs("logs", exist_ok=True)
 
 logging.basicConfig(
     filename="logs/billing.log",
@@ -15,6 +18,7 @@ logging.basicConfig(
 )
 
 def main():
+
     subs = load_subscriptions("subscriptions.csv")
     usage = load_usage("usage.csv")
 
@@ -32,11 +36,18 @@ def main():
 
     for _, row in result.iterrows():
 
+        # 🔹 NEW: Pro-rated monthly fee
+        prorated_fee = calculate_prorated_fee(
+            row["monthly_fee"],
+            row.get("start_date"),
+            row.get("end_date")
+        )
+
         overage, bill = calculate_bill(
             row["status"],
             row["total_usage_gb"],
             row["usage_limit_gb"],
-            row["monthly_fee"]
+            prorated_fee
         )
 
         final_status = evaluate_status(
@@ -60,6 +71,7 @@ def main():
     output_df.to_csv("billing_output.csv", index=False)
 
     generate_summary(output_df)
+
 
 if __name__ == "__main__":
     main()

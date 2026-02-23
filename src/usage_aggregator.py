@@ -8,13 +8,13 @@ def aggregate_usage(usage_df):
     if usage_df.empty:
         return pd.DataFrame(columns=["subscription_id", "total_usage_gb"])
 
-    # Parse dates (auto detect)
+    # Parse dates
     usage_df["usage_date"] = pd.to_datetime(
         usage_df["usage_date"],
         errors="coerce"
     )
 
-    # If parsing failed (like DD-MM-YYYY), retry with dayfirst
+    # Retry if needed (DD-MM-YYYY)
     if usage_df["usage_date"].isna().all():
         usage_df["usage_date"] = pd.to_datetime(
             usage_df["usage_date"],
@@ -30,6 +30,12 @@ def aggregate_usage(usage_df):
         (usage_df["usage_date"].dt.month == 3) &
         (usage_df["usage_date"].dt.year == 2024)
     ]
+
+    # Detect duplicate records
+    duplicate_count = usage_df.duplicated().sum()
+    if duplicate_count > 0:
+        logger.warning(f"{duplicate_count} duplicate usage records detected and removed.")
+        usage_df = usage_df.drop_duplicates()
 
     # Convert usage safely
     usage_df["data_used_gb"] = pd.to_numeric(
